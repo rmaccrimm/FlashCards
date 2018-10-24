@@ -1,3 +1,4 @@
+from termcolor import colored
 from random import randint
 import itertools as it
 import sys
@@ -38,7 +39,7 @@ def possible_answers(words, opt):
 
 def parse_input(s):
     s = clean(s)
-    opt_pattern = re.compile(r'\(([a-zàâçéèêëîïôûùüÿñæœ]+)\)', flags=re.IGNORECASE)
+    opt_pattern = re.compile(r'\(([a-zàâçéèêëîïôûùüÿñæœ ]+)\)', flags=re.IGNORECASE)
     for x in s.split(','):
         opts = opt_pattern.findall(x)
         if opts == None:
@@ -79,6 +80,6 @@ if __name__ == '__main__':
             print(card.ans[s][0], end=': ')
             ans = input()
             if card.match(not s, ans):
-                print("Correct!")
+                print(colored('Correct!', 'green'))
             else:
-                print("Wrong - " + card.ans[not s][0])
+                print(colored('Wrong', 'red') + ' - ' + card.ans[not s][0])
