@@ -37,29 +37,84 @@ def possible_answers(words, opt):
     return ans
 
 
+def full_string(s):
+    return ''.join([m for m in s if m not in ['(', ')']])
+
+
 def parse_input(s):
     s = clean(s)
     opt_pattern = re.compile(r'\(([a-zàâçéèêëîïôûùüÿñæœ ]+)\)', flags=re.IGNORECASE)
-    for x in s.split(','):
-        opts = opt_pattern.findall(x)
-        if opts == None:
-            opts = []
-        all_words = list(filter(lambda x: x != '', opt_pattern.split(x)))
-        opts = [clean(s) for s in opts]
-        all_words = [clean(s) for s in all_words]
+    opts = opt_pattern.findall(s)
+    if opts == None:
+        opts = []
+    all_words = list(filter(lambda x: x != '', opt_pattern.split(s)))
+    opts = [clean(x) for x in opts]
+    all_words = [clean(x) for x in all_words]
     return possible_answers(all_words, opts) 
 
 
-class Card:
+def merge_dict_sets(dest, src):
+    for k, v_list in src.items():
+        if k in dest:
+            dest[k] = dest[k].union(set(v_list))
+        else:
+            dest[k] = set(v_list)
+    return dest
+
+
+class CardSet:
     front = 0
     back = 1
+    
+    def __init__(self, names):
+        self.front_name, self.back_name = clean(names).split(':')
+        self.edges = []
+        self.accepted = {}
+        self.fronts = []
+        self.backs = []
+        self.tmap = {}
+        self._i = 0
 
-    def __init__(self, input_str):
-        f, b = input_str.split(':')
-        self.ans = [parse_input(f), parse_input(b)]
+    def add_card(self, input_str):
+        f, b = map(clean, input_str.split(':'))
+        # fr, ba map full_string -> [accepted_strings]
+        fr = self._make_dict(f)
+        ba = self._make_dict(b)
+        # add keys to list of front, back terms if not already present
+        self.fronts = list(set(self.fronts).union(set(fr.keys())))
+        self.backs = list(set(self.backs).union(set(ba.keys())))
 
-    def match(self, side, s):
-        return s in self.ans[side]
+        # update graph
+        for fr_k in fr.keys():
+            for ba_k in ba.keys():
+                i = self.tmap[fr_k]
+                j = self.tmap[ba_k]
+                self.edges[i].append(j)
+                self.edges[j].append(i)
+
+        # replace keys with mapped integers 
+        fr = {self.tmap[k]:v for k, v in fr.items()}
+        ba = {self.tmap[k]:v for k, v in ba.items()}
+
+        self.accepted = merge_dict_sets(self.accepted, fr)
+        self.accepted = merge_dict_sets(self.accepted, ba)
+
+    def match(self, question, answer):
+        for u in self.edges[self.tmap[question]]:
+            if answer in self.accepted[u]:
+                return True
+        return False
+
+    def _make_dict(self, str_in):
+        d = {} # unique id string -> all accepted alternatives
+        for x in str_in.split(','):
+            s = full_string(x)
+            if s not in self.tmap.keys():
+                self.tmap[s] = self._i
+                self.edges.append([])
+                self._i += 1
+            d[s] = parse_input(x)
+        return d
 
 
 if __name__ == '__main__':
@@ -68,18 +123,22 @@ if __name__ == '__main__':
     else:
         fc_file = open(sys.argv[1], 'r')
         fc_file.seek(0)
-        front, back = fc_file.readline().split(':')
-        cards = []
+        cards = CardSet(fc_file.readline())
+        
         for line in fc_file.readlines():
-            cards.append(Card(line))
+            cards.add_card(line)
 
         while True:
             print()
-            card = cards[randint(0, len(cards)-1)]
+            q = ''
             s = randint(0, 1)
-            print(card.ans[s][0], end=': ')
+            if s:
+                q = cards.fronts[randint(0, len(cards.fronts)-1)]
+            else:
+                q = cards.backs[randint(0, len(cards.backs)-1)]
+            print(q, end=': ')
             ans = input()
-            if card.match(not s, ans):
+            if cards.match(q, ans):
                 print(colored('Correct!', 'green'))
             else:
-                print(colored('Wrong', 'red') + ' - ' + card.ans[not s][0])
+                print(colored('Wrong', 'red') + ' - ' + ', '.join(cards.accepted[cards.tmap[q]]))
