@@ -50,7 +50,9 @@ def parse_input(s):
     all_words = list(filter(lambda x: x != '', opt_pattern.split(s)))
     opts = [clean(x) for x in opts]
     all_words = [clean(x) for x in all_words]
-    return possible_answers(all_words, opts) 
+    ans = possible_answers(all_words, opts) 
+    ans.sort(reverse=True)
+    return ans
 
 
 def merge_dict_sets(dest, src):
@@ -105,12 +107,16 @@ class CardSet:
                 return True
         return False
 
+    def answers(self, question):
+        return [self.tmap[i] for i in self.edges[self.tmap[question]]]
+
     def _make_dict(self, str_in):
         d = {} # unique id string -> all accepted alternatives
         for x in str_in.split(','):
             s = full_string(x)
             if s not in self.tmap.keys():
                 self.tmap[s] = self._i
+                self.tmap[self._i] = s
                 self.edges.append([])
                 self._i += 1
             d[s] = parse_input(x)
@@ -119,7 +125,7 @@ class CardSet:
 
 if __name__ == '__main__':
     if (len(sys.argv) < 2):
-        print('Must provide flashcard file')
+        print('Error: must provide flashcard file')
     else:
         fc_file = open(sys.argv[1], 'r')
         fc_file.seek(0)
@@ -138,7 +144,10 @@ if __name__ == '__main__':
                 q = cards.backs[randint(0, len(cards.backs)-1)]
             print(q, end=': ')
             ans = input()
+            if ans == 'q!':
+                break
             if cards.match(q, ans):
-                print(colored('Correct!', 'green'))
+                print(colored('Correct!', 'green'), end = ' ')
             else:
-                print(colored('Wrong', 'red') + ' - ' + ', '.join(cards.accepted[cards.tmap[q]]))
+                print(colored('Wrong!', 'red'), end = ' ')
+            print(', '.join(cards.answers(q)))
